@@ -7,18 +7,13 @@ import {
   Button,
   Modal,
   Pressable,
-  Alert,
   TextInput,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import EventSource, { EventSourceListener } from "react-native-sse";
 import Checkbox from "expo-checkbox";
-
-interface Todo {
-  completed: boolean;
-  id: string;
-  task: string;
-}
+import { Todo } from "./utils/models";
+import { parseDeleteTodoEvent, parseNewTodoEvent, parseUpdateTodoEvent } from "./utils/parse";
 
 const App = (): JSX.Element => {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -37,6 +32,17 @@ const App = (): JSX.Element => {
     setTodos((prevState) => [...prevState, newTodo]);
   };
 
+  const handleDeleteTodo = (todoId: string) => {
+    setTodos((prevItems) => prevItems.filter((item) => item.id !== todoId));
+  };
+
+  const handleUpdateTodo = (todoId: string) => {
+    setTodos((prevArray) =>
+      prevArray.map((item) =>
+        item.id === todoId ? { ...item, completed: !item.completed } : item
+      )
+    );
+  };
   // New Todo
   const newTodo = () => {
     fetch("http://192.168.60.104:7878/todos", {
@@ -45,7 +51,7 @@ const App = (): JSX.Element => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        query: `CREATE Todo SET task = "${inputValue}", completed = false;`,
+        task: `${inputValue}`,
       }),
     })
       .then((response) => {
@@ -61,6 +67,50 @@ const App = (): JSX.Element => {
     setInputValue("");
   };
 
+  // Update Todo
+  const updateTodo = (todoId: string) => {
+    fetch("http://192.168.60.104:7878/todos", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: `${todoId}`,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        console.log("PATCH exitoso");
+      })
+      .catch((error) => {
+        console.error("Error en el PATCH:", error);
+      });
+  };
+
+  // Delete Todo
+  const deleteTodo = (todoId: string) => {
+    fetch("http://192.168.60.104:7878/todos", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: `${todoId}`,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        console.log("DELETE exitoso");
+      })
+      .catch((error) => {
+        console.error("Error en el DELETE:", error);
+      });
+  };
+
   useEffect(() => {
     getTodos();
 
@@ -69,9 +119,24 @@ const App = (): JSX.Element => {
     const es = new EventSource(url);
     const listener: EventSourceListener = (event) => {
       if (event.type === "message") {
-        console.log(event.data);
-        const newTodo: Todo[] = JSON.parse(event.data);
-        handleAddTodo(newTodo[0]);
+        // If new Todo Event
+        const newTodoEvent = parseNewTodoEvent(event.data);
+        const updateTodoEvent = parseUpdateTodoEvent(event.data);
+        const deleteTodoEvent = parseDeleteTodoEvent(event.data);
+        if (newTodoEvent) {
+          console.log("NewTodo:", newTodoEvent);
+          handleAddTodo(newTodoEvent.todos[0]);
+        }
+        // If update Todo Event
+        else if (updateTodoEvent) {
+          console.log("UpdateTodo:", updateTodoEvent.todoId);
+          handleUpdateTodo(updateTodoEvent.todoId);
+        }
+        // If delete Todo Event
+        else if (deleteTodoEvent) {
+          console.log("DeleteTodo:", deleteTodoEvent);
+          handleDeleteTodo(deleteTodoEvent.todoId);
+        }
       }
     };
 
@@ -88,7 +153,6 @@ const App = (): JSX.Element => {
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => {
-          Alert.alert("Modal has been closed.");
           setModalVisible(!modalVisible);
         }}
       >
@@ -129,7 +193,17 @@ const App = (): JSX.Element => {
           return (
             <View style={styles.todos}>
               <Text style={styles.task}>{item.task}</Text>
-              <Checkbox style={styles.completed} value={item.completed} />
+              <Checkbox
+                style={styles.completed}
+                value={item.completed}
+                onValueChange={() => updateTodo(item.id)}
+              />
+              <Pressable
+                style={[styles.deleteButton]}
+                onPress={() => deleteTodo(item.id)}
+              >
+                <Text>Delete</Text>
+              </Pressable>
             </View>
           );
         }}
@@ -217,6 +291,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 10,
     padding: 10,
+  },
+  deleteButton: {
+    marginLeft: 10,
+    backgroundColor: "#ff1744",
+    borderRadius: 20,
+    padding: 2,
   },
 });
 
