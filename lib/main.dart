@@ -34,13 +34,45 @@ class TodoListTile extends StatefulWidget {
 
 class _TodoListTileState extends State<TodoListTile> {
   late Future<List<Todo>> _futureData;
+  final TextEditingController _controller = TextEditingController();
 
-  void _handleAddTodo() async {
-    Todo newTodo = Todo(id: "1", completed: false, task: "comprar banana");
+  void _handleAddTodo(String task) async {
+    Todo newTodo = Todo(id: "1", completed: false, task: task);
     List<Todo> lista = await _futureData;
     lista.add(newTodo);
     _futureData = Future.value(lista);
+    _controller.clear();
     setState(() {});
+  }
+
+  void _showDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("New Task"),
+          content: TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              hintText: "Description"
+            )
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => {
+                _handleAddTodo(_controller.text),
+                Navigator.pop(context)
+              },
+              child: const Text("Aceptar"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cerrar"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -99,7 +131,8 @@ class _TodoListTileState extends State<TodoListTile> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
-              _handleAddTodo();
+              /* _handleAddTodo(); */
+              _showDialog();
             },
             child: const Icon(Icons.add)
           ),
@@ -132,7 +165,8 @@ class _TodoListTileState extends State<TodoListTile> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
-              _handleAddTodo();
+              /* _handleAddTodo(); */
+              _showDialog();
             },
             child: const Icon(Icons.add)
           ),
