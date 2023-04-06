@@ -51,40 +51,95 @@ class _TodoListTileState extends State<TodoListTile> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("ToDo SSE")),
-      body: FutureBuilder<List<Todo>>(
-        future: _futureData,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                return CheckboxListTile(
-                    title: Text(snapshot.data![index].task),
-                    value: snapshot.data![index].completed,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        snapshot.data![index].completed = value ?? false;
-                      }
-                    );
-                  }
+    return LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+      if (constraints.maxWidth > 600) {
+        return Scaffold(
+          body: Row(
+            children: [
+              const SizedBox(
+                width: 300,
+                child: ThemeDrawer(),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    AppBar(title: const Text('Todo SSE')),
+                    Expanded(
+                      child: FutureBuilder<List<Todo>>(
+                        future: _futureData,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            return ListView.builder(
+                              itemCount: snapshot.data!.length,
+                              itemBuilder: (context, index) {
+                                return CheckboxListTile(
+                                  title: Text(snapshot.data![index].task),
+                                  value: snapshot.data![index].completed,
+                                  onChanged: (bool? value) {
+                                    setState(() {
+                                      snapshot.data![index].completed =
+                                          value ?? false;
+                                    });
+                                  },
+                                );
+                              },
+                            );
+                          } else if (snapshot.hasError) {
+                            return Text('${snapshot.error}');
+                          }
+                          return const CircularProgressIndicator();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              _handleAddTodo();
+            },
+            child: const Icon(Icons.add)
+          ),
+        );
+      } else {
+        return Scaffold(
+          appBar: AppBar(title: const Text("ToDo SSE")),
+          body: FutureBuilder<List<Todo>>(
+            future: _futureData,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    return CheckboxListTile(
+                        title: Text(snapshot.data![index].task),
+                        value: snapshot.data![index].completed,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            snapshot.data![index].completed = value ?? false;
+                          });
+                        });
+                  },
                 );
-              },
-            );
-          } else if (snapshot.hasError) {
-            return Text("${snapshot.error}");
-          }
-          return CircularProgressIndicator();
-        },
-      ),
-      floatingActionButton:
-          FloatingActionButton(onPressed: () {
-            _handleAddTodo();
-          },
-          child: const Icon(Icons.add)),
-      drawer: const ThemeDrawer(),
-    );
+              } else if (snapshot.hasError) {
+                return Text("${snapshot.error}");
+              }
+              return const CircularProgressIndicator();
+            },
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              _handleAddTodo();
+            },
+            child: const Icon(Icons.add)
+          ),
+          drawer: const ThemeDrawer(),
+        );
+      }
+    });
   }
 }
 
