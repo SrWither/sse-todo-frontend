@@ -52,16 +52,30 @@ class _TodoListTileState extends State<TodoListTile> {
         return AlertDialog(
           title: const Text("New Task"),
           content: TextField(
-            controller: _controller,
-            decoration: const InputDecoration(
-              hintText: "Description"
-            )
-          ),
+              controller: _controller,
+              decoration: const InputDecoration(hintText: "Description")),
           actions: [
             TextButton(
               onPressed: () => {
-                _handleAddTodo(_controller.text),
-                Navigator.pop(context)
+                if (_controller.text.isEmpty)
+                  {
+                    showDialog<String>(
+                      context: context,
+                      builder: (BuildContext context) => AlertDialog(
+                        title: const Text('Error'),
+                        content:
+                            const Text('Verifica que los campos estén llenos'),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, 'OK'),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  }
+                else
+                  {_handleAddTodo(_controller.text), Navigator.pop(context)}
               },
               child: const Text("Aceptar"),
             ),
@@ -130,12 +144,11 @@ class _TodoListTileState extends State<TodoListTile> {
             ],
           ),
           floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              /* _handleAddTodo(); */
-              _showDialog();
-            },
-            child: const Icon(Icons.add)
-          ),
+              onPressed: () {
+                /* _handleAddTodo(); */
+                _showDialog();
+              },
+              child: const Icon(Icons.add)),
         );
       } else {
         return Scaffold(
@@ -164,12 +177,11 @@ class _TodoListTileState extends State<TodoListTile> {
             },
           ),
           floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              /* _handleAddTodo(); */
-              _showDialog();
-            },
-            child: const Icon(Icons.add)
-          ),
+              onPressed: () {
+                /* _handleAddTodo(); */
+                _showDialog();
+              },
+              child: const Icon(Icons.add)),
           drawer: const ThemeDrawer(),
         );
       }
