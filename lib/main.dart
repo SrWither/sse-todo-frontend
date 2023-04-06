@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
-import 'dart:developer' as developer;
 import 'dart:convert';
 
 import 'themes.dart';
@@ -11,8 +10,6 @@ import 'todo.dart';
 MyTheme currentTheme = MyTheme();
 MyColors currentColor = MyColors();
 
-List<Todo> todos = [];
-
 void main() {
   currentTheme.init();
   runApp(const MyApp());
@@ -20,7 +17,7 @@ void main() {
 
 Future<List<Todo>> fetchData() async {
   final response =
-      await http.get(Uri.parse("http://192.168.60.104:7878/todos"));
+      await http.get(Uri.parse("http://192.168.60.181:7878/todos"));
 
   if (response.statusCode == 200) {
     final parsed = json.decode(response.body).cast<Map<String, dynamic>>();
@@ -38,6 +35,14 @@ class TodoListTile extends StatefulWidget {
 class _TodoListTileState extends State<TodoListTile> {
   late Future<List<Todo>> _futureData;
 
+  void _handleAddTodo() async {
+    Todo newTodo = Todo(id: "1", completed: false, task: "comprar banana");
+    List<Todo> lista = await _futureData;
+    lista.add(newTodo);
+    _futureData = Future.value(lista);
+    setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,28 +51,39 @@ class _TodoListTileState extends State<TodoListTile> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Todo>>(
-      future: _futureData,
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return ListView.builder(
-            itemCount: snapshot.data!.length,
-            itemBuilder: (context, index) {
-              return CheckboxListTile(
-                  title: Text(snapshot.data![index].task),
-                  value: snapshot.data![index].completed,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      snapshot.data![index].completed = value ?? false;
-                    });
-                  });
-            },
-          );
-        } else if (snapshot.hasError) {
-          return Text("${snapshot.error}");
-        }
-        return CircularProgressIndicator();
-      },
+    return Scaffold(
+      appBar: AppBar(title: const Text("ToDo SSE")),
+      body: FutureBuilder<List<Todo>>(
+        future: _futureData,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                return CheckboxListTile(
+                    title: Text(snapshot.data![index].task),
+                    value: snapshot.data![index].completed,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        snapshot.data![index].completed = value ?? false;
+                      }
+                    );
+                  }
+                );
+              },
+            );
+          } else if (snapshot.hasError) {
+            return Text("${snapshot.error}");
+          }
+          return CircularProgressIndicator();
+        },
+      ),
+      floatingActionButton:
+          FloatingActionButton(onPressed: () {
+            _handleAddTodo();
+          },
+          child: const Icon(Icons.add)),
+      drawer: const ThemeDrawer(),
     );
   }
 }
@@ -90,10 +106,6 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    /* final ColorScheme colorScheme = Theme.of(context).colorScheme; */
-    /* final Color oddItemColor = currentColor.currentColor().withOpacity(0.05); */
-    /* final Color evenItemColor = currentColor.currentColor().withOpacity(0.15); */
-
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -105,11 +117,7 @@ class _MyAppState extends State<MyApp> {
           brightness: Brightness.dark,
           useMaterial3: currentTheme.getMaterial()),
       themeMode: currentTheme.currentTheme(),
-      home: Scaffold(
-        appBar: AppBar(title: const Text("Hola!")),
-        body: TodoListTile(),
-        drawer: const ThemeDrawer(),
-      ),
+      home: TodoListTile(),
     );
   }
 }
