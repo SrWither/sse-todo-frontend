@@ -1,11 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_client_sse/flutter_client_sse.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-
-import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'themes.dart';
 import 'todo.dart';
+import 'parser.dart';
 
 MyTheme currentTheme = MyTheme();
 MyColors currentColor = MyColors();
@@ -20,8 +23,8 @@ Future<List<Todo>> fetchData() async {
       await http.get(Uri.parse("http://192.168.60.181:7878/todos"));
 
   if (response.statusCode == 200) {
-    final parsed = json.decode(response.body).cast<Map<String, dynamic>>();
-    return parsed.map<Todo>((json) => Todo.fromJson(json)).toList();
+    /* final parsed = json.decode(response.body).cast<Map<String, dynamic>>(); */
+    return parseTodo(response.body);
   } else {
     throw Exception('Failed to load post');
   }
@@ -33,16 +36,78 @@ class TodoListTile extends StatefulWidget {
 }
 
 class _TodoListTileState extends State<TodoListTile> {
+  // Data
   late Future<List<Todo>> _futureData;
   final TextEditingController _controller = TextEditingController();
+  final apiUrl = Uri.parse("http://192.168.60.181:7878/todos");
 
-  void _handleAddTodo(String task) async {
-    Todo newTodo = Todo(id: "1", completed: false, task: task);
+  // Handle Function
+  void _handleAddTodo(Todo newTodo) async {
     List<Todo> lista = await _futureData;
     lista.add(newTodo);
     _futureData = Future.value(lista);
     _controller.clear();
     setState(() {});
+  }
+
+  void _handleUpdateTodo(String taskId) async {
+    List<Todo> todoList = await _futureData;
+
+    for (int i = 0; i < todoList.length; i++) {
+      if (todoList[i].id == taskId) {
+        todoList[i].completed = !todoList[i].completed;
+        break;
+      }
+    }
+
+    _futureData = Future.value(todoList);
+    setState(() {});
+  }
+
+  void _handleDeleteTodo(String taskId) async {
+    List<Todo> todos = await _futureData;
+    int index = todos.indexWhere((todo) => todo.id == taskId);
+    if (index != -1) {
+      todos.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  // Api Functions
+  void postTodo(String task) async {
+    await http.post(
+      apiUrl,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'task': task,
+      }),
+    );
+  }
+
+  void updateTodo(String id) async {
+    await http.patch(
+      apiUrl,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'id': id,
+      }),
+    );
+  }
+
+  void deleteTodo(String id) async {
+    await http.delete(
+      apiUrl,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'id': id,
+      }),
+    );
   }
 
   void _showDialog() {
@@ -75,7 +140,11 @@ class _TodoListTileState extends State<TodoListTile> {
                     ),
                   }
                 else
-                  {_handleAddTodo(_controller.text), Navigator.pop(context)}
+                  {
+                    /* _handleAddTodo(_controller.text),  */
+                    postTodo(_controller.text),
+                    Navigator.pop(context)
+                  }
               },
               child: const Text("Aceptar"),
             ),
@@ -93,6 +162,23 @@ class _TodoListTileState extends State<TodoListTile> {
   void initState() {
     super.initState();
     _futureData = fetchData();
+    SSEClient.subscribeToSSE(
+        url: 'http://192.168.60.181:7878/todos/events',
+        header: {
+          "Accept": "text/event-stream",
+        }).listen((event) {
+      if (event.data != null) {
+        List<String> eventData = parseEvent(event.data!);
+        if (eventData[0] == "NewTodo") {
+          List<Todo> newTodo = parseTodo(eventData[1]);
+          _handleAddTodo(newTodo[0]);
+        } else if (eventData[0] == "UpdateTodo") {
+          _handleUpdateTodo(eventData[1]);
+        } else if (eventData[0] == "DeleteTodo") {
+          _handleDeleteTodo(eventData[1]);
+        }
+      }
+    });
   }
 
   @override
@@ -123,11 +209,14 @@ class _TodoListTileState extends State<TodoListTile> {
                                   title: Text(snapshot.data![index].task),
                                   value: snapshot.data![index].completed,
                                   onChanged: (bool? value) {
-                                    setState(() {
-                                      snapshot.data![index].completed =
-                                          value ?? false;
-                                    });
+                                    updateTodo(snapshot.data![index].id);
                                   },
+                                  secondary: IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () {
+                                      deleteTodo(snapshot.data![index].id);
+                                    },
+                                  ),
                                 );
                               },
                             );
@@ -161,13 +250,18 @@ class _TodoListTileState extends State<TodoListTile> {
                   itemCount: snapshot.data!.length,
                   itemBuilder: (context, index) {
                     return CheckboxListTile(
-                        title: Text(snapshot.data![index].task),
-                        value: snapshot.data![index].completed,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            snapshot.data![index].completed = value ?? false;
-                          });
-                        });
+                      title: Text(snapshot.data![index].task),
+                      value: snapshot.data![index].completed,
+                      onChanged: (bool? value) {
+                        updateTodo(snapshot.data![index].id);
+                      },
+                      secondary: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          deleteTodo(snapshot.data![index].id);
+                        },
+                      ),
+                    );
                   },
                 );
               } else if (snapshot.hasError) {
