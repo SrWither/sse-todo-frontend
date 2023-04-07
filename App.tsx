@@ -22,7 +22,7 @@ const App = (): JSX.Element => {
 
   // Get todos from rest api
   const getTodos = async () => {
-    const response = await fetch("http://192.168.60.104:7878/todos");
+    const response = await fetch("http://192.168.60.181:7878/todos");
     const json = await response.json();
     setTodos(json);
   };
@@ -45,7 +45,7 @@ const App = (): JSX.Element => {
   };
   // New Todo
   const newTodo = () => {
-    fetch("http://192.168.60.104:7878/todos", {
+    fetch("http://192.168.60.181:7878/todos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,7 +69,7 @@ const App = (): JSX.Element => {
 
   // Update Todo
   const updateTodo = (todoId: string) => {
-    fetch("http://192.168.60.104:7878/todos", {
+    fetch("http://192.168.60.181:7878/todos", {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -91,7 +91,7 @@ const App = (): JSX.Element => {
 
   // Delete Todo
   const deleteTodo = (todoId: string) => {
-    fetch("http://192.168.60.104:7878/todos", {
+    fetch("http://192.168.60.181:7878/todos", {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -115,7 +115,7 @@ const App = (): JSX.Element => {
     getTodos();
 
     // Event listener to SSE from rest api
-    const url = "http://192.168.60.104:7878/todos/events";
+    const url = "http://192.168.60.181:7878/todos/events";
     const es = new EventSource(url);
     const listener: EventSourceListener = (event) => {
       if (event.type === "message") {
