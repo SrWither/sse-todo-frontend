@@ -242,6 +242,7 @@ class _TodoListTileState extends State<TodoListTile> {
       } else {
         return Scaffold(
           appBar: AppBar(title: const Text("ToDo SSE")),
+          drawerEnableOpenDragGesture: true,
           body: FutureBuilder<List<Todo>>(
             future: _futureData,
             builder: (context, snapshot) {
